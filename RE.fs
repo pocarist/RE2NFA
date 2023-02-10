@@ -103,13 +103,13 @@ module Compiler =
     incr counter
     p
 
-  let rec f S = function
+  let rec f = function
     | Empty -> 
       let p = gen_p ()
       let q = gen_p ()
       {
         Q = [p; q]
-        S = S
+        S = []
         delta = []
         q0 = p
         F = [q]
@@ -120,14 +120,14 @@ module Compiler =
       let str = c.ToString()
       {
         Q = [p; q]
-        S = str :: S
+        S = [str]
         delta = [p, [(str, [q])]]
         q0 = p
         F = [q]
       }
     | Star r1 -> 
       let p = gen_p ()
-      let n1 = f S r1
+      let n1 = f r1
       let q = gen_p ()
       {
         Q = n1.Q @ [p; q]
@@ -141,12 +141,12 @@ module Compiler =
       }
     | Seq(r1, r2) -> 
       let p = gen_p ()
-      let n1 = f S r1
-      let n2 = f S r2
+      let n1 = f r1
+      let n2 = f r2
       let q = gen_p ()
       {
         Q = n1.Q @ n2.Q @ [p; q]
-        S = n1.S @ n2.S @ S
+        S = n1.S @ n2.S
         delta = n1.delta @ n2.delta @ [
                                         p, ["", [n1.q0]]
                                         n1.F.Head, ["", [n2.q0]]
@@ -157,12 +157,12 @@ module Compiler =
       }
     | Alt(r1, r2) -> 
       let p = gen_p ()
-      let n1 = f S r1
-      let n2 = f S r2
+      let n1 = f r1
+      let n2 = f r2
       let q = gen_p ()
       {
         Q = n1.Q @ n2.Q @ [p; q]
-        S = n1.S @ n2.S @ S
+        S = n1.S @ n2.S
         delta = n1.delta @ n2.delta @ [
                                         p, ["", [n1.q0; n2.q0]]
                                         n1.F.Head, ["", [q]]
@@ -174,7 +174,7 @@ module Compiler =
 
 let compile t =
   Compiler.counter := 0
-  let nfa = Compiler.f [] t
+  let nfa = Compiler.f t
   {
     nfa with
       Q = nfa.Q |> Set.ofList |> Set.toList
