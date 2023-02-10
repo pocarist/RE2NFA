@@ -4,6 +4,7 @@
     <TargetFramework>net7.0</TargetFramework>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="RE.fsi" />
     <Compile Include="RE.fs" />
     <Compile Include="Program.fs" />
   </ItemGroup>
