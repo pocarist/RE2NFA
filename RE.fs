@@ -1,7 +1,29 @@
 module RE
 
+type S = string
+type Q = int
+type delta = (Q * (S * Q list) list) list
+type NFA = {
+    Q: Q list
+    S: S list
+    delta: delta
+    q0: Q
+    F: Q list
+}
+
+type state = Q list
+type Delta = (state * (S * state) list) list
+type DFA = {
+    Q: state list
+    S: S list
+    Delta: Delta
+    Q0: state
+    F: state list
+}
+
 type t =
-    Chr of char
+  | Empty
+  | Chr of char
   | Star of t
   | Seq of t * t
   | Alt of t * t
@@ -24,51 +46,140 @@ atom ::=
       | '(' expression ')'
 
 *)
-type parser_context = {
-  input: string
-  pos: int
-}
 
-let init str = {
-  input = str
-  pos = 0
-}
+module Parser =
+  type parser_context = {
+    input: string
+    pos: int
+  }
 
-let rec expression pc =
-  let t, pc = term pc
-  if pc.pos < pc.input.Length && pc.input.[pc.pos] = '|' then
-    let pc = {pc with pos = pc.pos+1}
-    let t2, pc = expression pc
-    Alt(t, t2), pc
-  else
-    t, pc
-and term pc =
-  let t, pc = factor pc
-  if pc.pos < pc.input.Length && not ("|()*".Contains(pc.input.[pc.pos])) then
-    let t2, pc = term pc
-    Seq(t, t2), pc
-  else
-    t, pc
-and factor pc =
-  let t, pc = atom pc
-  if pc.pos < pc.input.Length && pc.input.[pc.pos] = '*' then
-    let pc = {pc with pos = pc.pos+1}
-    Star(t), pc
-  else
-    t, pc
-and atom pc =
-  if pc.pos < pc.input.Length && pc.input.[pc.pos] = '(' then
-    let pc = {pc with pos = pc.pos+1}
-    let t, pc = expression pc
-    let pc = {pc with pos = pc.pos+1} // ')'
-    t, pc
-  else
-    let t = Chr(pc.input.[pc.pos])
-    let pc = {pc with pos = pc.pos+1}
-    t, pc
+  let init str = {
+    input = str
+    pos = 0
+  }
+
+  let rec expression pc =
+    let t, pc = term pc
+    if pc.pos < pc.input.Length && pc.input.[pc.pos] = '|' then
+      let pc = {pc with pos = pc.pos+1}
+      let t2, pc = expression pc
+      Alt(t, t2), pc
+    else
+      t, pc
+  and term pc =
+    let t, pc = factor pc
+    if pc.pos < pc.input.Length && not ("|()*".Contains(pc.input.[pc.pos])) then
+      let t2, pc = term pc
+      Seq(t, t2), pc
+    else
+      t, pc
+  and factor pc =
+    let t, pc = atom pc
+    if pc.pos < pc.input.Length && pc.input.[pc.pos] = '*' then
+      let pc = {pc with pos = pc.pos+1}
+      Star(t), pc
+    else
+      t, pc
+  and atom pc =
+    if pc.pos < pc.input.Length && pc.input.[pc.pos] = '(' then
+      let pc = {pc with pos = pc.pos+1}
+      let t, pc = expression pc
+      let pc = {pc with pos = pc.pos+1} // ')'
+      t, pc
+    else
+      let t = Chr(pc.input.[pc.pos])
+      let pc = {pc with pos = pc.pos+1}
+      t, pc
 
 let parse str =
-  init str
-  |> expression
+  Parser.init str
+  |> Parser.expression
   |> fst
 
+module Compiler =
+  let counter = ref 0
+  let gen_p () =
+    let p = !counter
+    incr counter
+    p
+
+  let (@@) = List.append
+
+  let rec f S = function
+    | Empty -> 
+      let p = gen_p ()
+      let q = gen_p ()
+      {
+        Q = [p; q]
+        S = S
+        delta = []
+        q0 = p
+        F = [q]
+      }
+    | Chr c -> 
+      let p = gen_p ()
+      let q = gen_p ()
+      let str = c.ToString()
+      {
+        Q = [p; q]
+        S = str :: S
+        delta = [p, [(str, [q])]]
+        q0 = p
+        F = [q]
+      }
+    | Star r1 -> 
+      let p = gen_p ()
+      let n1 = f S r1
+      let q = gen_p ()
+      {
+        Q = n1.Q @@ [p; q]
+        S = n1.S
+        delta = n1.delta @@ [
+                              p, ["", [n1.q0; q]]
+                              n1.F.Head, ["", [n1.q0; q]]
+                            ]
+        q0 = p
+        F = [q]
+      }
+    | Seq(r1, r2) -> 
+      let p = gen_p ()
+      let n1 = f S r1
+      let n2 = f S r2
+      let q = gen_p ()
+      {
+        Q = n1.Q @@ n2.Q @@ [p; q]
+        S = n1.S @@ n2.S @@ S
+        delta = n1.delta @@ n2.delta @@ [
+                                          p, ["", [n1.q0]]
+                                          n1.F.Head, ["", [n2.q0]]
+                                          n2.F.Head, ["", [q]]
+                                        ]
+        q0 = p
+        F = [q]
+      }
+    | Alt(r1, r2) -> 
+      let p = gen_p ()
+      let n1 = f S r1
+      let n2 = f S r2
+      let q = gen_p ()
+      {
+        Q = n1.Q @@ n2.Q @@ [p; q]
+        S = n1.S @@ n2.S @@ S
+        delta = n1.delta @@ n2.delta @@ [
+                                          p, ["", [n1.q0; n2.q0]]
+                                          n1.F.Head, ["", [q]]
+                                          n2.F.Head, ["", [q]]
+                                        ]
+        q0 = p
+        F = [q]
+      }
+
+let compile t =
+  Compiler.counter := 0
+  let nfa = Compiler.f [] t
+  {
+    nfa with
+      Q = nfa.Q |> Set.ofList |> Set.toList
+      S = nfa.S |> Set.ofList |> Set.toList
+      delta = nfa.delta |> Set.ofList |> Set.toList
+  }
