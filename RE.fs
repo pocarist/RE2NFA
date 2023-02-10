@@ -103,8 +103,6 @@ module Compiler =
     incr counter
     p
 
-  let (@@) = List.append
-
   let rec f S = function
     | Empty -> 
       let p = gen_p ()
@@ -132,12 +130,12 @@ module Compiler =
       let n1 = f S r1
       let q = gen_p ()
       {
-        Q = n1.Q @@ [p; q]
+        Q = n1.Q @ [p; q]
         S = n1.S
-        delta = n1.delta @@ [
-                              p, ["", [n1.q0; q]]
-                              n1.F.Head, ["", [n1.q0; q]]
-                            ]
+        delta = n1.delta @ [
+                            p, ["", [n1.q0; q]]
+                            n1.F.Head, ["", [n1.q0; q]]
+                          ]
         q0 = p
         F = [q]
       }
@@ -147,13 +145,13 @@ module Compiler =
       let n2 = f S r2
       let q = gen_p ()
       {
-        Q = n1.Q @@ n2.Q @@ [p; q]
-        S = n1.S @@ n2.S @@ S
-        delta = n1.delta @@ n2.delta @@ [
-                                          p, ["", [n1.q0]]
-                                          n1.F.Head, ["", [n2.q0]]
-                                          n2.F.Head, ["", [q]]
-                                        ]
+        Q = n1.Q @ n2.Q @ [p; q]
+        S = n1.S @ n2.S @ S
+        delta = n1.delta @ n2.delta @ [
+                                        p, ["", [n1.q0]]
+                                        n1.F.Head, ["", [n2.q0]]
+                                        n2.F.Head, ["", [q]]
+                                      ]
         q0 = p
         F = [q]
       }
@@ -163,13 +161,13 @@ module Compiler =
       let n2 = f S r2
       let q = gen_p ()
       {
-        Q = n1.Q @@ n2.Q @@ [p; q]
-        S = n1.S @@ n2.S @@ S
-        delta = n1.delta @@ n2.delta @@ [
-                                          p, ["", [n1.q0; n2.q0]]
-                                          n1.F.Head, ["", [q]]
-                                          n2.F.Head, ["", [q]]
-                                        ]
+        Q = n1.Q @ n2.Q @ [p; q]
+        S = n1.S @ n2.S @ S
+        delta = n1.delta @ n2.delta @ [
+                                        p, ["", [n1.q0; n2.q0]]
+                                        n1.F.Head, ["", [q]]
+                                        n2.F.Head, ["", [q]]
+                                      ]
         q0 = p
         F = [q]
       }
