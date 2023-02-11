@@ -181,3 +181,124 @@ let compile t =
       S = nfa.S |> Set.ofList |> Set.toList
       delta = nfa.delta |> Set.ofList |> Set.toList
   }
+
+module NFA =
+  (*
+type delta = (Q * (S * Q list) list) list
+type NFA = {
+    Q: Q list
+    S: S list
+    delta: delta
+    q0: Q
+    F: Q list
+}
+
+  *)
+
+  // delta transition
+  let delta_transition (delta:delta) p a =
+    match List.tryFind (fun (x, _) -> p = x) delta with
+    | Some (_, sqs) ->
+      sqs
+      |> List.map (fun (s, qs) -> if s = a then qs else [])
+      |> List.concat            
+    | None -> []
+
+  // epsilon closure
+  let epsilon_closure (delta:delta) P =
+    let rec loop visited acc = function 
+      | [] -> acc |> Set.ofList |> Set.toList
+      | p :: xs ->
+        if Set.contains p visited then
+          loop visited acc xs
+        else
+          let visited = Set.add p visited
+          let ys =
+            match List.tryFind (fun (x, _) -> p = x) delta with
+            | Some (_, sqs) ->
+              sqs
+              |> List.map (fun (s, qs) -> if s = "" then qs else [])
+              |> List.concat            
+            | None -> []
+          let acc = acc @ ys
+          loop visited acc (xs@ys)
+    loop Set.empty [] P
+
+  // delta hat
+  let delta_hat (delta:delta) p (wa:S list) = 
+    let rec loop (p:Q) = function
+      | [] -> epsilon_closure delta [p]
+      | a :: w -> 
+        loop p w
+        |> List.map (fun q -> 
+          delta_transition delta q a
+        )
+        |> List.concat
+    loop p wa
+    |> epsilon_closure delta
+    |> Set.ofList
+    |> Set.toList
+
+  // delta_D
+  let delta_D delta P a =
+    P
+    |> List.map (fun p ->
+      delta_hat delta p [a]
+    )
+    |> List.concat
+    |> Set.ofList
+    |> Set.toList
+
+module DFA =
+(*
+type state = Q list
+type Delta = (state * (S * state) list) list
+type DFA = {
+    Q: state list
+    S: S list
+    Delta: Delta
+    Q0: state
+    F: state list
+}
+*)
+  let toDFA nfa =
+    let Cl = NFA.epsilon_closure nfa.delta
+    let delta_hat = NFA.delta_hat nfa.delta
+    let delta_D = NFA.delta_D nfa.delta
+    let addS (A, s) (Q1, Q2, Omega) =
+      let A' = delta_D A s
+      let Q1' =
+        if List.contains A' ([A] @ Q1 @ Q2) then Q1
+        else [A'] @ Q1
+      Q1', [(s, A')] @ Omega
+    let addQ A (Q1, Q2, Delta) =
+      let (q1, omega) =
+        nfa.S
+        |> List.fold (fun (q1, omega) s -> 
+          addS (A, s) (q1, Q2, omega)
+        ) (Q1, [])
+      Q1, [A] @ Q2, [A, omega] @ Delta
+    let rec subsets = function
+      | [], Q2, Delta -> Q2, Delta
+      | (A: Q list) :: Q1, (Q2: Q list list), (Delta:Delta) -> subsets (addQ A (Q1, Q2, Delta))
+
+    let A = Cl [nfa.q0]
+    let (Q, Delta) = subsets ([A], [], [])
+    let Fin =
+      let Fs = nfa.F |> Set.ofList
+      Q
+      |> List.filter (fun q ->
+        let qs = Set.ofList q
+        Set.intersect qs Fs <> Set.empty
+      )
+    {
+      DFA.Q = Q
+      S = nfa.S
+      Delta = Delta
+      Q0 = A
+      F = Fin
+    }
+      
+let nfa2dfa nfa =
+  DFA.toDFA nfa
+  
