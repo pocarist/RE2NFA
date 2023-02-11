@@ -68,7 +68,7 @@ module Parser =
       t, pc
   and term pc =
     let t, pc = factor pc
-    if pc.pos < pc.input.Length && not ("|()*".Contains(pc.input.[pc.pos])) then
+    if pc.pos < pc.input.Length && not ("|)*".Contains(pc.input.[pc.pos])) then
       let t2, pc = term pc
       Seq(t, t2), pc
     else
@@ -197,12 +197,26 @@ type NFA = {
 
   // delta transition
   let delta_transition (delta:delta) p a =
-    match List.tryFind (fun (x, _) -> p = x) delta with
-    | Some (_, sqs) ->
-      sqs
-      |> List.map (fun (s, qs) -> if s = a then qs else [])
-      |> List.concat            
-    | None -> []
+    // match List.tryFind (fun (x, _) -> p = x) delta with
+    // | Some (_, sqs) ->
+    //   sqs
+    //   |> List.map (fun (s, qs) -> if s = a then qs else [])
+    //   |> List.concat            
+    // | None -> []
+    delta
+    |> List.fold (fun acc (q, sqs) -> 
+      if p = q then
+        sqs
+        |> List.map (fun (s, qs) ->
+          if s = a then
+            qs
+            |> List.filter (fun q -> not <| List.exists ((=) q) acc)
+          else []
+        )
+        |> List.concat
+      else
+        acc
+    ) []
 
   // epsilon closure
   let epsilon_closure (delta:delta) P =
@@ -220,36 +234,24 @@ type NFA = {
     loop Set.empty [] P
 
   // delta hat
-  let rec delta_hat delta p = function
+  let delta_hat delta p wa =
+    let rec f = function
     | [] -> epsilon_closure delta [p]
     | a :: w ->
-      delta_hat delta p w
+      f w
       |> List.map (fun q -> delta_transition delta q a)
       |> List.concat
       |> Set.ofList
       |> Set.toList
-      // |> epsilon_closure delta
+      |> epsilon_closure delta 
+    f (List.rev wa)
       
-  // let delta_hat (delta:delta) p (wa:S list) = 
-  //   let rec loop (p:Q) = function
-  //     | [] -> epsilon_closure delta [p]
-  //     | a :: w -> 
-  //       loop p w
-  //       |> List.map (fun q -> 
-  //         delta_transition delta q a
-  //       )
-  //       |> List.concat
-  //       |> Set.ofList
-  //       |> Set.toList
-  //   loop p wa
-  //   |> epsilon_closure delta
-
   // delta_D
   let delta_D delta P a =
     P
-    |> List.map (fun p ->
-      delta_hat delta p [a]
-    )
+    |> List.fold (fun acc p ->
+      delta_hat delta p a :: acc
+    ) []
     |> List.concat
     |> Set.ofList
     |> Set.toList
@@ -271,18 +273,18 @@ type DFA = {
     let delta_hat = NFA.delta_hat nfa.delta
     let delta_D = NFA.delta_D nfa.delta
     let addS (A, s) (Q1, Q2, Omega) =
-      let A' = delta_D A s
+      let A' = delta_D A [s]
       let Q1' =
-        if List.contains A' ([A] @ Q1 @ Q2) then Q1
-        else [A'] @ Q1
-      Q1', [(s, A')] @ Omega
+        if List.contains A' (A :: Q1 @ Q2) then Q1
+        else A' :: Q1
+      Q1', (s, A') :: Omega
     let addQ A (Q1, Q2, Delta) =
       let (q1, omega) =
         nfa.S
         |> List.fold (fun (q1, omega) s -> 
           addS (A, s) (q1, Q2, omega)
         ) (Q1, [])
-      Q1, [A] @ Q2, [A, omega] @ Delta
+      q1, A :: Q2, (A, omega) :: Delta
     let rec subsets = function
       | [], Q2, Delta -> Q2, Delta
       | (A: Q list) :: Q1, (Q2: Q list list), (Delta:Delta) -> subsets (addQ A (Q1, Q2, Delta))

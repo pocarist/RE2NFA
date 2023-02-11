@@ -2,13 +2,18 @@
 
 let f re_str =
   re_str
-  |> fun x -> printfn "%s" x; x
+  |> fun x -> printfn "\n%s" x; x
   |> RE.parse 
+  |> fun x -> printfn "%A" x; x
   |> RE.compile
   |> fun nfa -> printfn "%A" nfa; nfa
   |> fun nfa ->
-    RE.NFA.epsilon_closure nfa.delta [0]
-    |> printfn "%A"
+    // assert (RE.NFA.delta_transition nfa.delta 1 "a" = [2])
+    // assert (RE.NFA.delta_D nfa.delta [0; 1; 3] ["a"] = [2; 5])
+    // RE.NFA.epsilon_closure nfa.delta [0]
+    // |> printfn "%A"
+    // RE.NFA.delta_hat nfa.delta 1 ["a"]
+    // |> printfn "%A"
     RE.nfa2dfa nfa
     |> printfn "%A"
 
