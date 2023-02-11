@@ -1,3 +1,7 @@
+// 「コンパイラ 原理と構造」大堀敦 より
+// 練習問題 4.5 NFAからDFAへの変換アルゴリズムの実装
+// RegularExpressionからNFAへの変換アルゴリズムも載っていたのでそれも実装
+
 module RE
 
 type S = string
@@ -21,12 +25,12 @@ type DFA = {
     F: state list
 }
 
-type t =
+type RE =
   | Empty
   | Chr of char
-  | Star of t
-  | Seq of t * t
-  | Alt of t * t
+  | Star of RE
+  | Seq of RE * RE
+  | Alt of RE * RE
 
 (*
 expression ::= 
@@ -47,7 +51,7 @@ atom ::=
 
 *)
 
-module Parser =
+module REParser =
   type parser_context = {
     input: string
     pos: int
@@ -92,11 +96,11 @@ module Parser =
       t, pc
 
 let parse str =
-  Parser.init str
-  |> Parser.expression
+  REParser.init str
+  |> REParser.expression
   |> fst
 
-module Compiler =
+module RECompiler =
   let counter = ref 0
   let gen_p () =
     let p = !counter
@@ -173,8 +177,8 @@ module Compiler =
       }
 
 let compile t =
-  Compiler.counter := 0
-  let nfa = Compiler.f t
+  RECompiler.counter := 0
+  let nfa = RECompiler.f t
   {
     nfa with
       Q = nfa.Q |> Set.ofList |> Set.toList
@@ -197,12 +201,6 @@ type NFA = {
 
   // delta transition
   let delta_transition (delta:delta) p a =
-    // match List.tryFind (fun (x, _) -> p = x) delta with
-    // | Some (_, sqs) ->
-    //   sqs
-    //   |> List.map (fun (s, qs) -> if s = a then qs else [])
-    //   |> List.concat            
-    // | None -> []
     delta
     |> List.fold (fun acc (q, sqs) -> 
       if p = q then
@@ -270,7 +268,6 @@ type DFA = {
 *)
   let toDFA nfa =
     let Cl = NFA.epsilon_closure nfa.delta
-    let delta_hat = NFA.delta_hat nfa.delta
     let delta_D = NFA.delta_D nfa.delta
     let addS (A, s) (Q1, Q2, Omega) =
       let A' = delta_D A [s]
@@ -279,12 +276,12 @@ type DFA = {
         else A' :: Q1
       Q1', (s, A') :: Omega
     let addQ A (Q1, Q2, Delta) =
-      let (q1, omega) =
+      let (q1n, omega_n) =
         nfa.S
         |> List.fold (fun (q1, omega) s -> 
           addS (A, s) (q1, Q2, omega)
         ) (Q1, [])
-      q1, A :: Q2, (A, omega) :: Delta
+      q1n, A :: Q2, (A, omega_n) :: Delta
     let rec subsets = function
       | [], Q2, Delta -> Q2, Delta
       | (A: Q list) :: Q1, (Q2: Q list list), (Delta:Delta) -> subsets (addQ A (Q1, Q2, Delta))
