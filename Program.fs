@@ -1,6 +1,6 @@
 ﻿let dprintfn fmt = Printf.ksprintf System.Diagnostics.Debug.WriteLine fmt
 
-let f re_str =
+let f re_str tests =
   re_str
   |> fun x -> printfn "\n%s" x; x
   |> RE.parse 
@@ -14,21 +14,16 @@ let f re_str =
     // |> printfn "%A"
     // RE.NFA.delta_hat nfa.delta 1 ["a"]
     // |> printfn "%A"
-    RE.nfa2dfa nfa
+    let dfa = RE.nfa2dfa nfa
+    dfa
     |> printfn "%A"
+    tests
+    |> List.iter (fun (str, expected) -> assert (RE.accept dfa str = expected))
+    
 
-"a|b"
-|> f
 
-// [$ (a|b)^\ast ab(a|b)^\ast c]
-"(a|b)*ab(a|b)*c"
-|> f
-
-// "(ab|ac)d"
-// |> f
-
-// "(ab|ac)d*e"
-// |> f
+f "a|b" ["a", true; "ab", false] 
+f "(a|b)*ab(a|b)*c" ["aabbbabc", true; "aacbbbabc", false]
 
   
     

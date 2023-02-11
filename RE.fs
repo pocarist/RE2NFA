@@ -305,7 +305,43 @@ type DFA = {
       Q0 = A
       F = Fin
     }
+
+  // delta transition (DFA)
+  let delta_transition (Delta:Delta) p a : state =
+    Delta
+    |> List.fold (fun acc (q, sqs) -> 
+      if p = q then
+        sqs
+        |> List.map (fun (s, qs) ->
+          if s = a then
+            qs
+            |> List.filter (fun q -> not <| List.exists ((=) q) acc)
+          else []
+        )
+        |> List.concat
+      else
+        acc
+    ) []
+
+  // delta hat (DFA)
+  let delta_hat Delta p wa =
+    let rec f = function
+    | [] -> p
+    | a :: w ->
+      f w
+      |> List.map (fun q -> delta_transition Delta q a)
+      |> Set.ofList
+      |> Set.toList
+    f (List.rev wa)
+  
       
 let nfa2dfa nfa =
   DFA.toDFA nfa
+  
+let accept (dfa:DFA) (str:string) =
+  let w = str.ToCharArray() |> Array.map string |> List.ofArray
+  let q = DFA.delta_hat dfa.Delta [dfa.Q0] w
+  let qs = Set.ofList q
+  let Fs = Set.ofList dfa.F
+  Set.intersect qs Fs <> Set.empty
   
