@@ -214,30 +214,35 @@ type NFA = {
         else
           let visited = Set.add p visited
           let ys =
-            match List.tryFind (fun (x, _) -> p = x) delta with
-            | Some (_, sqs) ->
-              sqs
-              |> List.map (fun (s, qs) -> if s = "" then qs else [])
-              |> List.concat            
-            | None -> []
-          let acc = acc @ ys
+            delta_transition delta p ""
+          let acc = p :: acc
           loop visited acc (xs@ys)
     loop Set.empty [] P
 
   // delta hat
-  let delta_hat (delta:delta) p (wa:S list) = 
-    let rec loop (p:Q) = function
-      | [] -> epsilon_closure delta [p]
-      | a :: w -> 
-        loop p w
-        |> List.map (fun q -> 
-          delta_transition delta q a
-        )
-        |> List.concat
-    loop p wa
-    |> epsilon_closure delta
-    |> Set.ofList
-    |> Set.toList
+  let rec delta_hat delta p = function
+    | [] -> epsilon_closure delta [p]
+    | a :: w ->
+      delta_hat delta p w
+      |> List.map (fun q -> delta_transition delta q a)
+      |> List.concat
+      |> Set.ofList
+      |> Set.toList
+      // |> epsilon_closure delta
+      
+  // let delta_hat (delta:delta) p (wa:S list) = 
+  //   let rec loop (p:Q) = function
+  //     | [] -> epsilon_closure delta [p]
+  //     | a :: w -> 
+  //       loop p w
+  //       |> List.map (fun q -> 
+  //         delta_transition delta q a
+  //       )
+  //       |> List.concat
+  //       |> Set.ofList
+  //       |> Set.toList
+  //   loop p wa
+  //   |> epsilon_closure delta
 
   // delta_D
   let delta_D delta P a =
