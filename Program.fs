@@ -3,13 +3,13 @@
   printfn "Input: %s" re_str
 
   let regexp = RE.parse re_str
-  printfn "RE: %A" regexp
+  printfn "RE:\n%A" regexp
 
   let nfa = RE.compile regexp
-  printfn "NFA: %A" nfa
+  printfn "NFA:\n%A" nfa
 
   let dfa = RE.nfa2dfa nfa
-  printfn "DFA: %A" dfa
+  printfn "DFA:\n%A" dfa
 
   tests
   |> List.iter (fun (str, expected) ->
@@ -17,6 +17,11 @@
     printfn "Accept: %s -> %s" str (if actual then "OK" else "NG")
     assert (actual = expected)
   )
+
+  printfn "%s" (RE.nfa_to_state_diagram nfa)  
+
+  printfn "%s" (RE.dfa_to_state_diagram dfa)  
+
 
 f "a|b" ["a", true; "ab", false] 
 f "(a|b)*ab(a|b)*c" ["aabbbabc", true; "aacbbbabc", false]

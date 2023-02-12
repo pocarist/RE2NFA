@@ -342,3 +342,60 @@ let accept (dfa:DFA) (str:string) =
   let Fs = Set.ofList dfa.F
   Set.intersect qs Fs <> Set.empty
   
+let nfa_to_state_diagram (nfa:NFA) =
+  nfa.delta
+  |> List.map (fun (q, sqs) ->
+    sqs
+    |> List.map (fun (s, qs) -> List.map (fun q' -> q, q', s) qs)
+    |> List.concat    
+  )
+  |> List.concat
+  |> List.map (fun (p, q, s) -> sprintf "%A --> %A : %s" p q (if s = "" then "ε" else s))
+  |> fun body ->
+    let start = sprintf "[*] --> %A" nfa.q0
+    let fins = nfa.F |> List.map (sprintf "%A --> [*]")
+    start :: fins @ body
+  |> fun body ->
+    """---
+title: NFA state diagram
+---
+stateDiagram-v2"""
+    :: body
+  |> String.concat "\n\t"
+  |> fun diagram ->
+    [
+      "```mermaid"
+      diagram
+      "```"
+    ]
+    |> String.concat "\n"
+
+let dfa_to_state_diagram (dfa:DFA) =
+  let to_string x = 
+    sprintf "%A" x
+    |> fun s -> s.Replace(" ", "")
+  dfa.Delta
+  |> List.map (fun (q, sqs) ->
+    sqs
+    |> List.map (fun (s, qs) -> q, qs, s)
+  )
+  |> List.concat
+  |> List.map (fun (p, q, s) -> sprintf "%s --> %s : %s" (to_string p) (to_string q) (if s = "" then "ε" else s))
+  |> fun body ->
+    let start = sprintf "[*] --> %s" (to_string dfa.Q0)
+    let fins = dfa.F |> List.map (sprintf "%s --> [*]" << to_string)
+    start :: fins @ body
+  |> fun body ->
+    """---
+title: DFA state diagram
+---
+stateDiagram-v2"""  
+    :: body
+  |> String.concat "\n\t"
+  |> fun diagram ->
+    [
+      "```mermaid"
+      diagram
+      "```"
+    ]
+    |> String.concat "\n"
