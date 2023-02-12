@@ -218,18 +218,17 @@ type NFA = {
 
   // epsilon closure
   let epsilon_closure (delta:delta) P =
-    let rec loop visited acc = function 
-      | [] -> acc |> Set.ofList |> Set.toList
+    let rec loop visited = function 
+      | [] -> visited |> Set.toList
       | p :: xs ->
         if Set.contains p visited then
-          loop visited acc xs
+          loop visited xs
         else
           let visited = Set.add p visited
           let ys =
             delta_transition delta p ""
-          let acc = p :: acc
-          loop visited acc (xs@ys)
-    loop Set.empty [] P
+          loop visited (xs@ys)
+    loop Set.empty P
 
   // delta hat
   let delta_hat delta p wa =
@@ -276,15 +275,15 @@ type DFA = {
         else A' :: Q1
       Q1', (s, A') :: Omega
     let addQ A (Q1, Q2, Delta) =
-      let (q1n, omega_n) =
+      let (Q1n, Omega_n) =
         nfa.S
         |> List.fold (fun (q1, omega) s -> 
           addS (A, s) (q1, Q2, omega)
         ) (Q1, [])
-      q1n, A :: Q2, (A, omega_n) :: Delta
+      Q1n, A :: Q2, (A, Omega_n) :: Delta
     let rec subsets = function
       | [], Q2, Delta -> Q2, Delta
-      | (A: Q list) :: Q1, (Q2: Q list list), (Delta:Delta) -> subsets (addQ A (Q1, Q2, Delta))
+      | A :: Q1, Q2, Delta -> subsets (addQ A (Q1, Q2, Delta))
 
     let A = Cl [nfa.q0]
     let (Q, Delta) = subsets ([A], [], [])
