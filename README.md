@@ -136,7 +136,7 @@ stateDiagram-v2
         28 --> 29 : ε
 ```
 
-### Show NFA State Diagram (mermaid style)
+### Show DFA State Diagram (mermaid style)
 ```sh
 dotnet run --dfa-diagram "(a|b)*ab(a|b)*c"
 ```
