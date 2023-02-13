@@ -1,30 +1,59 @@
-﻿let f re_str tests =
-  printfn "-----------"
-  printfn "Input: %s" re_str
+﻿open CommandLine
 
-  let regexp = RE.parse re_str
-  printfn "RE:\n%A" regexp
+type options = {
+  [<Option('r', "re", HelpText = "show regular expression.")>] show_re: bool
+  [<Option('n', "nfa", HelpText = "show NFA.")>] show_nfa: bool
+  [<Option('d', "dfa", HelpText = "show DFA.")>] show_dfa: bool
+  [<Option('N', "nfa-diagram", HelpText = "show NFA state diagram.")>] show_nfa_diagram: bool
+  [<Option('D', "dfa-diagram", HelpText = "show DFA state diagram.")>] show_dfa_diagram: bool
+  [<Value(0, Required = true, MetaName = "regexp", HelpText = "regexp pattern.")>] regexp : string
+  [<Value(1, MetaName = "accept", HelpText = "check accept string.")>] accept: string option
+}
 
-  let nfa = RE.compile regexp
-  printfn "NFA:\n%A" nfa
+let run o =
+  let re = RE.parse o.regexp
+
+  if o.show_re then
+    re
+    |> printfn "%A"
+
+  let nfa = RE.compile re
+  if o.show_nfa then
+    nfa
+    |> printfn "%A"
 
   let dfa = RE.nfa2dfa nfa
-  printfn "DFA:\n%A" dfa
+  if o.show_dfa then
+    dfa
+    |> printfn "%A"
 
-  tests
-  |> List.iter (fun (str, expected) ->
-    let actual = RE.accept dfa str
-    printfn "Accept: %s -> %s" str (if actual then "OK" else "NG")
-    assert (actual = expected)
-  )
+  if o.show_nfa_diagram then
+    RE.nfa_to_state_diagram nfa
+    |> printfn "%s"
 
-  printfn "%s" (RE.nfa_to_state_diagram nfa)  
+  if o.show_dfa_diagram then
+    RE.dfa_to_state_diagram dfa
+    |> printfn "%s"
 
-  printfn "%s" (RE.dfa_to_state_diagram dfa)  
+  match o.accept with
+  | Some s ->
+    printfn "regexp: %s, input: %s, Accept: %s" o.regexp s (if RE.accept dfa s then "OK" else "NG")
+  | _ -> ()
 
+  0
+      
+let fail _ =
+  -1
 
-f "a|b" ["a", true; "ab", false] 
-f "(a|b)*ab(a|b)*c" ["aabbbabc", true; "aacbbbabc", false]
+[<EntryPoint>]
+let main argv =
+  let result = CommandLine.Parser.Default.ParseArguments<options>(argv)
+  match result with
+  | :? Parsed<options> as parsed -> run parsed.Value
+  | :? NotParsed<options> as notParsed -> fail notParsed.Errors  
+
+// f "a|b" ["a", true; "ab", false] 
+// f "(a|b)*ab(a|b)*c" ["aabbbabc", true; "aacbbbabc", false]
 
 (*
 -----------
